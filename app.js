@@ -34,6 +34,8 @@ const ICONOS = [
 const $ = (id) => document.getElementById(id);
 const leer = (k, def) => { try { const v = localStorage.getItem(k); return v === null ? def : JSON.parse(v); } catch (e) { return def; } };
 const escribir = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* sin almacenamiento */ } };
+// Los nombres de categoría y de medio vienen de la hoja: se escapan antes de ponerlos como HTML.
+const esc = (t) => String(t).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 const cop = (n) => '$' + Math.round(Number(n) || 0).toLocaleString('es-CO');
 const corto = (c) => CORTOS[c] || String(c).split(/\s+y\s+|\s*\(/)[0];
 const icono = (c) => (ICONOS.find(([re]) => re.test(c)) || [null, 'tag'])[1];
@@ -101,12 +103,12 @@ function pintarCats() {
   cont.textContent = '';
   const vis = visibles();
   vis.forEach((c) => {
-    const b = boton('cat', c, `<i class="ti ti-${icono(c)}" aria-hidden="true"></i>${corto(c)}`, elegirCat);
+    const b = boton('cat', c, `<i class="ti ti-${icono(c)}" aria-hidden="true"></i>${esc(corto(c))}`, elegirCat);
     b.setAttribute('aria-pressed', String(s.cat === c));
     cont.appendChild(b);
   });
   const fuera = s.cat && !vis.includes(s.cat);
-  const mas = boton('cat', '__mas', fuera ? `<i class="ti ti-${icono(s.cat)}" aria-hidden="true"></i>${corto(s.cat)}`
+  const mas = boton('cat', '__mas', fuera ? `<i class="ti ti-${icono(s.cat)}" aria-hidden="true"></i>${esc(corto(s.cat))}`
                                           : '<i class="ti ti-dots" aria-hidden="true"></i>Más', abrirHoja);
   mas.setAttribute('aria-pressed', String(!!fuera));
   mas.setAttribute('aria-label', fuera ? `${s.cat}. Cambiar categoría` : 'Más categorías');
@@ -117,7 +119,7 @@ function pintarMedios() {
   const cont = $('medios');
   cont.textContent = '';
   (datos.medios && datos.medios.length ? datos.medios : MEDIOS_BASE).forEach((m) => {
-    const b = boton('medio', m, m, (v) => { s.medio = v; escribir('medio', v); pintarMedios(); pintarMonto(); });
+    const b = boton('medio', m, esc(m), (v) => { s.medio = v; escribir('medio', v); pintarMedios(); pintarMonto(); });
     b.setAttribute('aria-pressed', String(s.medio === m));
     cont.appendChild(b);
   });
@@ -143,7 +145,7 @@ function abrirHoja() {
   lista.textContent = '';
   const todas = datos.todas.length ? datos.todas : [...new Set([...CATS_BASE, ...Object.keys(CORTOS)])].sort((a, b) => a.localeCompare(b, 'es'));
   todas.forEach((c) => {
-    const b = boton('opcion', c, `<i class="ti ti-${icono(c)}" aria-hidden="true"></i><span>${c}</span>`, (v) => { cerrarHoja(); elegirCat(v); });
+    const b = boton('opcion', c, `<i class="ti ti-${icono(c)}" aria-hidden="true"></i><span>${esc(c)}</span>`, (v) => { cerrarHoja(); elegirCat(v); });
     b.setAttribute('aria-pressed', String(s.cat === c));
     lista.appendChild(b);
   });
