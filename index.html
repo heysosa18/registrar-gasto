@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#111214" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F3F3EF" media="(prefers-color-scheme: light)">
+<meta name="description" content="Anota un gasto en segundos y queda en tu hoja de finanzas.">
+<title>Registrar gasto</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<style>
+  :root {
+    --bg: #111214; --surface: #1B1C1F; --surface-2: #26282C; --line: #2E3035;
+    --text: #ECEDEE; --muted: #9A9DA3; --accent: #D4F06A; --accent-ink: #D4F06A; --on-accent: #111214;
+    --danger: #FF8A80; --danger-bg: #3A1C1A; --radius: 14px;
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #F3F3EF; --surface: #FFFFFF; --surface-2: #E8E8E3; --line: #DADAD3;
+            --text: #17181A; --muted: #5C5F65; --accent: #C8E64C; --accent-ink: #4A6400; --on-accent: #17181A;
+            --danger: #A3261E; --danger-bg: #FBE3E0; color-scheme: light; }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); }
+  body { font: 500 15px/1.35 Manrope, system-ui, sans-serif; overscroll-behavior: none; -webkit-font-smoothing: antialiased; }
+  ::selection { background: var(--accent); color: var(--on-accent); }
+  input { caret-color: var(--accent-ink); }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--accent-ink); outline-offset: 2px; border-radius: 10px; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  main { max-width: 440px; margin: 0 auto; min-height: 100dvh; display: flex; flex-direction: column;
+         padding: calc(env(safe-area-inset-top) + 14px) 16px calc(env(safe-area-inset-bottom) + 14px); gap: 12px; }
+  .top { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--muted); }
+  .top b { color: var(--text); font-weight: 600; }
+  .pend { display: none; align-items: center; gap: 4px; font-size: 12px; color: var(--accent-ink); }
+  .pend.on { display: inline-flex; }
+
+  .monto { text-align: center; flex: 1; display: flex; flex-direction: column; justify-content: center; min-height: 116px; }
+  .monto .valor { font-size: clamp(44px, 14vw, 56px); font-weight: 700; letter-spacing: -0.03em; line-height: 1.05; }
+  .monto .sig { font-size: 24px; font-weight: 600; color: var(--muted); vertical-align: 0.9em; margin-right: 2px; }
+  .monto .valor.cero { color: var(--muted); }
+  .fechas { display: flex; justify-content: center; gap: 4px; margin-top: 6px; }
+  .fechas button { font-size: 13px; padding: 6px 10px; border-radius: 999px; color: var(--muted); }
+  .fechas button[aria-pressed=true] { color: var(--accent-ink); background: var(--surface); }
+  #fechaInput { position: absolute; opacity: 0; pointer-events: none; width: 1px; height: 1px; }
+
+  .cats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .cat { background: var(--surface); border-radius: var(--radius); padding: 10px 4px 8px; text-align: center;
+         font-size: 11.5px; color: var(--muted); border: 1.5px solid transparent; min-height: 64px;
+         white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: border-color .15s, color .15s; }
+  .cat i { display: block; font-size: 23px; margin-bottom: 4px; color: var(--text); transition: color .15s; }
+  .cat[aria-pressed=true] { border-color: var(--accent-ink); color: var(--accent-ink); }
+  .cat[aria-pressed=true] i { color: var(--accent-ink); }
+
+  .medios { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px; }
+  .medios::-webkit-scrollbar { display: none; }
+  .medio { flex: 0 0 auto; font-size: 13px; padding: 8px 13px; border-radius: 999px; background: var(--surface); color: var(--muted); }
+  .medio[aria-pressed=true] { background: var(--accent); color: var(--on-accent); font-weight: 700; }
+
+  .nota-btn { align-self: flex-start; font-size: 13px; color: var(--muted); display: inline-flex; gap: 6px; align-items: center; padding: 2px 0; }
+  .nota { display: none; width: 100%; font: inherit; font-size: 15px; color: var(--text); background: var(--surface);
+          border: 1.5px solid var(--line); border-radius: 12px; padding: 11px 12px; outline: none; }
+  .nota:focus { border-color: var(--accent-ink); }
+  .nota::placeholder { color: var(--muted); }
+  .nota.on { display: block; }
+
+  .teclado { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; user-select: none; }
+  .tecla { height: 52px; border-radius: 12px; background: var(--surface); font-size: 22px; font-weight: 600;
+           display: flex; align-items: center; justify-content: center; transition: background .08s, transform .08s; touch-action: manipulation; }
+  .tecla:active { background: var(--surface-2); transform: scale(.97); }
+  .tecla.mini { font-size: 16px; }
+
+  .guardar { height: 56px; border-radius: 16px; background: var(--accent); color: var(--on-accent); font-size: 17px; font-weight: 700;
+             display: flex; align-items: center; justify-content: center; gap: 8px; transition: transform .1s, background .2s; touch-action: manipulation; }
+  .guardar:active { transform: scale(.985); }
+  .guardar.falta { background: var(--surface-2); color: var(--muted); }
+  .guardar.listo i { animation: pop .45s cubic-bezier(.16,1,.3,1); }
+  @keyframes pop { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+  .toast { position: fixed; left: 16px; right: 16px; top: calc(env(safe-area-inset-top) + 10px); max-width: 408px; margin: 0 auto;
+           background: var(--surface-2); color: var(--text); border-radius: 14px; padding: 12px 14px; font-size: 14px;
+           display: flex; align-items: center; gap: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.28);
+           transform: translateY(-140%); opacity: 0; transition: transform .35s cubic-bezier(.16,1,.3,1), opacity .25s; z-index: 5; }
+  .toast.on { transform: none; opacity: 1; }
+  .toast.err { background: var(--danger-bg); color: var(--danger); }
+  .toast span { flex: 1; }
+  .toast button { color: var(--accent-ink); font-weight: 700; padding: 4px 2px; }
+  .toast.err button { color: var(--danger); }
+
+  .hoja { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; z-index: 6; }
+  .hoja.on { display: block; }
+  .hoja .panel { position: absolute; left: 0; right: 0; bottom: 0; max-height: 72dvh; overflow: auto; background: var(--bg);
+                 border-radius: 20px 20px 0 0; padding: 10px 8px calc(env(safe-area-inset-bottom) + 12px); max-width: 440px; margin: 0 auto;
+                 animation: sube .3s cubic-bezier(.16,1,.3,1); }
+  @keyframes sube { from { transform: translateY(40%); opacity: .6; } to { transform: none; opacity: 1; } }
+  .hoja h2 { font-size: 15px; font-weight: 700; margin: 6px 12px 8px; }
+  .opcion { width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 12px; text-align: left; font-size: 15px; }
+  .opcion i { font-size: 20px; color: var(--muted); width: 22px; text-align: center; }
+  .opcion:active, .opcion[aria-pressed=true] { background: var(--surface); }
+
+  .conectar { display: none; flex: 1; flex-direction: column; justify-content: center; gap: 14px; padding: 0 8px; }
+  .conectar.on { display: flex; }
+  .conectar h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; margin: 0; }
+  .conectar p { color: var(--muted); margin: 0; line-height: 1.5; }
+  body.sin-clave .app { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <section class="conectar" id="conectar">
+    <h1>Conecta tu hoja</h1>
+    <p>Esta app anota tus gastos en "Archivo de Extractos". Toca Conectar, entra con tu cuenta de Google y vuelve aquí. Solo se hace una vez.</p>
+    <button class="guardar" id="btnConectar" type="button"><i class="ti ti-plug-connected" aria-hidden="true"></i>Conectar</button>
+  </section>
+
+  <div class="top app">
+    <span id="hoyFecha"></span>
+    <span><span class="pend" id="pend"><i class="ti ti-cloud-upload" aria-hidden="true"></i><span id="pendTxt"></span></span>
+      <span id="totales" class="num">Hoy <b>—</b> · Mes <b>—</b></span></span>
+  </div>
+
+  <div class="monto app" aria-live="polite">
+    <div class="valor num cero" id="valor"><span class="sig">$</span><span id="digitos">0</span></div>
+    <div class="fechas" role="group" aria-label="Fecha del gasto">
+      <button type="button" data-cuando="hoy" aria-pressed="true">Hoy</button>
+      <button type="button" data-cuando="ayer" aria-pressed="false">Ayer</button>
+      <button type="button" data-cuando="fecha" aria-pressed="false" id="btnOtra"><i class="ti ti-calendar" aria-hidden="true"></i> <span id="otraTxt">Otra fecha</span></button>
+      <input type="date" id="fechaInput" aria-label="Elegir fecha">
+    </div>
+  </div>
+
+  <div class="cats app" id="cats" role="group" aria-label="Categoría"></div>
+  <div class="medios app" id="medios" role="group" aria-label="Con qué pagaste"></div>
+
+  <button class="nota-btn app" id="btnNota" type="button"><i class="ti ti-pencil" aria-hidden="true"></i><span>Agregar nota</span></button>
+  <input class="nota app" id="nota" type="text" maxlength="120" placeholder="Corte de pelo, almuerzo…" autocomplete="off">
+
+  <div class="teclado app" id="teclado">
+    <button class="tecla" type="button">1</button><button class="tecla" type="button">2</button><button class="tecla" type="button">3</button>
+    <button class="tecla" type="button">4</button><button class="tecla" type="button">5</button><button class="tecla" type="button">6</button>
+    <button class="tecla" type="button">7</button><button class="tecla" type="button">8</button><button class="tecla" type="button">9</button>
+    <button class="tecla mini" type="button">000</button><button class="tecla" type="button">0</button>
+    <button class="tecla" type="button" data-borrar aria-label="Borrar"><i class="ti ti-backspace" aria-hidden="true"></i></button>
+  </div>
+  <button class="guardar app falta" id="guardar" type="button">Escribe el monto</button>
+</main>
+
+<div class="toast" id="toast" role="status"><span id="toastTxt"></span><button type="button" id="toastBtn"></button></div>
+
+<div class="hoja" id="hoja">
+  <div class="panel" role="dialog" aria-label="Todas las categorías">
+    <h2>Todas las categorías</h2>
+    <div id="lista"></div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
