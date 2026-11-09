@@ -216,6 +216,7 @@ function sumarTotales(g, signo) {
   const v = signo * Number(g.monto);
   if (dia === hoy) datos.totales.hoy += v;
   if (dia.slice(0, 7) === hoy.slice(0, 7)) datos.totales.mes += v;
+  escribir('datos', datos);
 }
 
 function guardar() {
@@ -255,7 +256,7 @@ async function deshacer(g) {
     const r = await api('deshacer', { deshacer: confirmados[g.id] });
     if (!r.ok) throw new Error(r.error);
     delete confirmados[g.id];
-    if (r.totales) datos.totales = r.totales;
+    if (r.totales) { datos.totales = r.totales; escribir('datos', datos); }
     pintarTop();
     aviso('Listo, se borró ese gasto.');
   } catch (e) {
