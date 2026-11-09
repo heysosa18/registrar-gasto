@@ -212,7 +212,7 @@ function ocultarAviso() { $('toast').classList.remove('on'); }
 function sumarTotales(g, signo) {
   if (!datos.totales) return;
   const hoy = ymd(new Date());
-  const dia = g.cuando === 'fecha' ? g.fecha : g.cuando === 'ayer' ? ymd(new Date(Date.now() - 864e5)) : hoy;
+  const dia = g.fecha || (g.cuando === 'ayer' ? ymd(new Date(Date.now() - 864e5)) : hoy);
   const v = signo * Number(g.monto);
   if (dia === hoy) datos.totales.hoy += v;
   if (dia.slice(0, 7) === hoy.slice(0, 7)) datos.totales.mes += v;
@@ -222,7 +222,9 @@ function sumarTotales(g, signo) {
 function guardar() {
   const falta = queFalta();
   if (falta) { vibrar(); aviso(falta + '.'); return; }
-  const g = { id: uuid(), monto: s.digitos, categoria: s.cat, medio: s.medio, nota: s.nota.trim(), cuando: s.cuando, fecha: s.fecha };
+  // El día queda fijo desde ya: si el gasto sale horas después (sin señal), "hoy" sigue siendo el día en que se anotó.
+  const dia = s.cuando === 'fecha' ? s.fecha : ymd(new Date(Date.now() - (s.cuando === 'ayer' ? 864e5 : 0)));
+  const g = { id: uuid(), monto: s.digitos, categoria: s.cat, medio: s.medio, nota: s.nota.trim(), cuando: s.cuando, fecha: dia };
   pendientes.push(g);
   escribir('pendientes', pendientes);
   usos[g.categoria] = (usos[g.categoria] || 0) + 1;
@@ -264,13 +266,19 @@ async function deshacer(g) {
   }
 }
 
+/** Lo que viaja a la hoja: el día guardado al anotar. Solo va como "hoy" si de verdad sigue siendo hoy. */
+function paraEnviar(g) {
+  if (!g.fecha) return g;   // gastos en cola de una versión anterior
+  return Object.assign({}, g, { cuando: g.fecha === ymd(new Date()) ? 'hoy' : 'fecha' });
+}
+
 async function enviar() {
   if (enviando || !clave || !pendientes.length) { pintarTop(); return; }
   enviando = true;
   while (pendientes.length) {
     const g = pendientes[0];
     let r;
-    try { r = await api('guardar', { gasto: g }); }
+    try { r = await api('guardar', { gasto: paraEnviar(g) }); }
     catch (e) { break; }                                             // sin señal: se reintenta después
     if (r.codigo === 401) { desconectar(); break; }
     pendientes.shift();
