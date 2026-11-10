@@ -1,5 +1,5 @@
 /* Guarda la pantalla en el celular para que abra al instante y sin señal. Las llamadas a la hoja nunca se guardan. */
-const VERSION = 'gasto-v4';
+const VERSION = 'gasto-v5';
 const BASE = ['./', 'index.html', 'app.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', (e) => {

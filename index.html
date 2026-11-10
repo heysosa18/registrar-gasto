@@ -107,6 +107,23 @@
   .opcion i { font-size: 20px; color: var(--muted); width: 22px; text-align: center; }
   .opcion:active, .opcion[aria-pressed=true] { background: var(--surface); }
 
+  .totales { font-size: 13px; color: var(--muted); padding: 6px 0 6px 6px; display: inline-flex; align-items: center; gap: 4px; }
+  .totales i { font-size: 15px; }
+  .resumen { margin: 0 12px 10px; color: var(--muted); font-size: 14px; line-height: 1.45; }
+  .barra { height: 6px; border-radius: 3px; background: var(--surface-2); margin: 0 12px 18px; overflow: hidden; }
+  .barra div { height: 100%; width: 0; border-radius: 3px; background: var(--accent-ink); transition: width .4s cubic-bezier(.16,1,.3,1); }
+  .barra.pasado div { background: var(--danger); }
+  .item { display: flex; align-items: center; gap: 12px; padding: 8px 4px 8px 12px; }
+  .item > i { font-size: 20px; color: var(--muted); width: 22px; text-align: center; }
+  .item .txt { flex: 1; min-width: 0; }
+  .item .txt b { display: block; font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .item .txt small { color: var(--muted); font-size: 12.5px; }
+  .item .val { font-weight: 600; font-size: 15px; }
+  .item .borrar { color: var(--muted); min-width: 44px; min-height: 44px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; padding: 0 10px; }
+  .item .borrar i { font-size: 19px; }
+  .item .borrar.seguro { color: var(--danger); background: var(--danger-bg); }
+  .vacio { color: var(--muted); padding: 4px 12px 18px; margin: 0; font-size: 14px; }
+
   .conectar { display: none; flex: 1; flex-direction: column; justify-content: center; gap: 14px; padding: 0 8px; }
   .conectar.on { display: flex; }
   .conectar h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; margin: 0; }
@@ -125,7 +142,7 @@
   <div class="top app">
     <span id="hoyFecha"></span>
     <span><span class="pend" id="pend"><i class="ti ti-cloud-upload" aria-hidden="true"></i><span id="pendTxt"></span></span>
-      <span id="totales" class="num">Hoy <b>—</b> · Mes <b>—</b></span></span>
+      <button type="button" id="totales" class="num totales" aria-label="Ver el mes y los últimos gastos">Hoy <b>—</b> · Mes <b>—</b></button></span>
   </div>
 
   <div class="monto app" aria-live="polite">
@@ -160,6 +177,16 @@
   <div class="panel" role="dialog" aria-label="Todas las categorías">
     <h2>Todas las categorías</h2>
     <div id="lista"></div>
+  </div>
+</div>
+
+<div class="hoja" id="hojaUltimos">
+  <div class="panel" role="dialog" aria-label="El mes y los últimos gastos">
+    <h2 id="mesTitulo">Este mes</h2>
+    <p class="resumen" id="mesResumen"></p>
+    <div class="barra" id="mesBarraFondo"><div id="mesBarra"></div></div>
+    <h2>Últimos gastos anotados</h2>
+    <div id="ultimos"></div>
   </div>
 </div>
 

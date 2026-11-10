@@ -62,10 +62,107 @@ function pintarTop() {
   $('hoyFecha').textContent = dia.charAt(0).toUpperCase() + dia.slice(1);
   const mes = new Intl.DateTimeFormat('es-CO', { month: 'short' }).format(hoy).replace('.', '');
   const t = datos.totales;
-  $('totales').innerHTML = `Hoy <b>${t ? cop(t.hoy) : '—'}</b> · ${mes.charAt(0).toUpperCase() + mes.slice(1)} <b>${t ? cop(t.mes) : '—'}</b>`;
+  $('totales').innerHTML = `Hoy <b>${t ? cop(t.hoy) : '—'}</b> · ${mes.charAt(0).toUpperCase() + mes.slice(1)} <b>${t ? cop(t.mes) : '—'}</b>` +
+                           '<i class="ti ti-chevron-down" aria-hidden="true"></i>';
   $('pend').classList.toggle('on', pendientes.length > 0);
   $('pendTxt').textContent = pendientes.length ? `${pendientes.length} por enviar ·` : '';
+  if ($('hojaUltimos').classList.contains('on')) pintarUltimos();
 }
+
+/* ───────────── El mes y los últimos gastos ───────────── */
+
+const fechaCorta = (dia) => {
+  const [y, m, d] = String(dia).split('-').map(Number);
+  return new Intl.DateTimeFormat('es-CO', { day: 'numeric', month: 'short' }).format(new Date(y, m - 1, d)).replace('.', '');
+};
+
+function pintarUltimos() {
+  const t = datos.totales;
+  const mes = new Intl.DateTimeFormat('es-CO', { month: 'long' }).format(new Date());
+  $('mesTitulo').textContent = mes.charAt(0).toUpperCase() + mes.slice(1);
+  const prom = t && t.promedio > 0 ? t.promedio : 0;
+  const parte = prom ? t.mes / prom : 0;
+  $('mesResumen').textContent = !t ? 'Aún no hay datos de la hoja.'
+    : prom ? `Llevas ${cop(t.mes)}. En un mes normal gastas ${cop(prom)}: vas en el ${Math.round(parte * 100)} %.`
+    : `Llevas ${cop(t.mes)} este mes.`;
+  $('mesBarra').style.width = Math.min(100, Math.round(parte * 100)) + '%';
+  $('mesBarraFondo').classList.toggle('pasado', parte > 1);
+
+  const cont = $('ultimos');
+  cont.textContent = '';
+  const filas = pendientes.slice().reverse().map((g) => ({ g, porEnviar: true, fecha: g.fecha, monto: g.monto, categoria: g.categoria, medio: g.medio, descripcion: g.nota }))
+    .concat(datos.recientes || []);
+  if (!filas.length) {
+    const p = document.createElement('p');
+    p.className = 'vacio';
+    p.textContent = 'Aquí aparecen los gastos que anotes, para borrarlos si te equivocas.';
+    cont.appendChild(p);
+  }
+  filas.forEach((x) => cont.appendChild(itemUltimo(x)));
+}
+
+/** Una fila de la lista. Todo el texto entra con textContent: son datos de la hoja. */
+function itemUltimo(x) {
+  const el = (tag, clase, texto) => { const e = document.createElement(tag); if (clase) e.className = clase; if (texto !== undefined) e.textContent = texto; return e; };
+  const fila = el('div', 'item');
+  const ico = el('i', `ti ti-${icono(x.categoria)}`);
+  ico.setAttribute('aria-hidden', 'true');
+  const txt = el('div', 'txt');
+  txt.appendChild(el('b', '', x.descripcion || corto(x.categoria)));
+  txt.appendChild(el('small', '', [x.fecha ? fechaCorta(x.fecha) : '', x.medio, x.porEnviar ? 'por enviar' : ''].filter(String).join(' · ')));
+  const b = el('button', 'borrar');
+  b.type = 'button';
+  b.innerHTML = '<i class="ti ti-trash" aria-hidden="true"></i>';
+  b.setAttribute('aria-label', `Borrar ${cop(x.monto)}, ${x.descripcion || corto(x.categoria)}`);
+  let timer = null;
+  b.addEventListener('click', () => {
+    vibrar();
+    if (!b.classList.contains('seguro')) {            // primer toque: pide confirmar
+      b.classList.add('seguro'); b.textContent = '¿Borrar?';
+      timer = setTimeout(() => { b.classList.remove('seguro'); b.innerHTML = '<i class="ti ti-trash" aria-hidden="true"></i>'; }, 3500);
+      return;
+    }
+    clearTimeout(timer);
+    b.disabled = true; b.textContent = '…';
+    borrarUltimo(x);
+  });
+  fila.append(ico, txt, el('span', 'val num', cop(x.monto)), b);
+  return fila;
+}
+
+async function borrarUltimo(x) {
+  if (x.porEnviar) { await deshacer(x.g); pintarUltimos(); return; }
+  try {
+    const r = await api('deshacer', { deshacer: { hoja: x.hoja, fila: x.fila, id: x.id } });
+    if (r.codigo === 401) { desconectar(); return; }
+    if (!r.ok) throw new Error(r.error);
+    if (r.totales) datos.totales = r.totales;
+    datos.recientes = r.recientes || (datos.recientes || []).filter((y) => y.id !== x.id);
+    escribir('datos', datos);
+    pintarTop(); pintarUltimos();
+    aviso('Listo, se borró ese gasto.');
+  } catch (e) {
+    aviso('No se pudo borrar: ' + (e.message || 'sin señal'), null, null, true);
+    pintarUltimos();
+    refrescar();
+  }
+}
+
+/* ───────────── Paneles que suben (el botón atrás de Android los cierra) ───────────── */
+
+function abrirPanel(id) {
+  $(id).classList.add('on');
+  try { history.pushState({ panel: id }, ''); } catch (e) { /* sin historial */ }
+}
+function cerrarPanel(id) {
+  if (!$(id).classList.contains('on')) return;
+  $(id).classList.remove('on');
+  try { if (history.state && history.state.panel) history.back(); } catch (e) { /* sin historial */ }
+}
+window.addEventListener('popstate', () => document.querySelectorAll('.hoja.on').forEach((h) => h.classList.remove('on')));
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') document.querySelectorAll('.hoja.on').forEach((h) => cerrarPanel(h.id)); });
+document.querySelectorAll('.hoja').forEach((h) => h.addEventListener('click', (e) => { if (e.target === h) cerrarPanel(h.id); }));
+$('totales').addEventListener('click', () => { vibrar(); pintarUltimos(); abrirPanel('hojaUltimos'); refrescar(); });
 
 function pintarMonto() {
   $('digitos').textContent = s.digitos ? Number(s.digitos).toLocaleString('es-CO') : '0';
@@ -149,11 +246,9 @@ function abrirHoja() {
     b.setAttribute('aria-pressed', String(s.cat === c));
     lista.appendChild(b);
   });
-  $('hoja').classList.add('on');
+  abrirPanel('hoja');
 }
-function cerrarHoja() { $('hoja').classList.remove('on'); }
-
-$('hoja').addEventListener('click', (e) => { if (e.target.id === 'hoja') cerrarHoja(); });
+function cerrarHoja() { cerrarPanel('hoja'); }
 
 $('teclado').addEventListener('click', (e) => {
   const t = e.target.closest('.tecla');
@@ -260,6 +355,7 @@ async function deshacer(g) {
     const r = await api('deshacer', { deshacer: confirmados[g.id] });
     if (!r.ok) throw new Error(r.error);
     delete confirmados[g.id];
+    if (r.recientes) datos.recientes = r.recientes;
     if (r.totales) { datos.totales = r.totales; escribir('datos', datos); }
     pintarTop();
     aviso('Listo, se borró ese gasto.');
@@ -285,8 +381,13 @@ async function enviar() {
     if (r.codigo === 401) { desconectar(); break; }
     pendientes.shift();
     escribir('pendientes', pendientes);
-    if (!r.ok) { aviso('No se guardó: ' + r.error, null, null, true); continue; }
+    if (!r.ok) {   // la hoja lo rechazó: se devuelve lo que se había sumado al total
+      sumarTotales(g, -1);
+      aviso(`No se guardó ${cop(g.monto)}: ${r.error}`, null, null, true);
+      continue;
+    }
     if (r.totales) datos.totales = r.totales;
+    if (r.recientes) datos.recientes = r.recientes;
     escribir('datos', datos);
     if (r.deshacer) confirmados[g.id] = r.deshacer;
     if (deshacerAlLlegar.has(g.id)) { deshacerAlLlegar.delete(g.id); deshacer(g); }
@@ -319,7 +420,7 @@ async function refrescar() {
     const r = await api('datos');
     if (r.codigo === 401) { desconectar(); return; }
     if (!r.ok) return;
-    datos = { todas: r.todas || [], medios: r.medios || MEDIOS_BASE, totales: r.totales || null };
+    datos = { todas: r.todas || [], medios: r.medios || MEDIOS_BASE, totales: r.totales || null, recientes: r.recientes || [] };
     pendientes.forEach((g) => sumarTotales(g, 1));   // lo que aún no llega a la hoja
     escribir('datos', datos);
     pintarTodo();
@@ -340,23 +441,30 @@ $('btnConectar').addEventListener('click', () => {
 
 /* ───────────── Modo de prueba local (?mock en localhost) ───────────── */
 
-const falso = { totales: { hoy: 0, mes: 152000 }, n: 0 };
+const falso = { totales: { hoy: 0, mes: 152000, promedio: 3043921 }, n: 0, recientes: [
+  { hoja: 'En vivo', fila: 12, id: 'peluqueria', fecha: '2026-11-03', monto: 17500, categoria: 'Ropa y cuidado personal', medio: 'Nequi', descripcion: 'Peluquería (José del Carmen Soler)' },
+] };
 function falsa(accion, extra) {
   const espera = (v) => new Promise((ok, ko) => setTimeout(() => (location.search.includes('caida') ? ko(new Error('sin red')) : ok(v)), 450));
   if (accion === 'datos') {
     return espera({ ok: true, todas: [...new Set([...CATS_BASE, ...Object.keys(CORTOS), 'Gasolina', 'Mascotas', 'Seguros'])].sort((a, b) => a.localeCompare(b, 'es')),
-                    medios: MEDIOS_BASE, totales: Object.assign({}, falso.totales) });
+                    medios: MEDIOS_BASE, totales: Object.assign({}, falso.totales), recientes: falso.recientes.slice() });
   }
   if (accion === 'guardar') {
     const g = extra.gasto;
     if (g.cuando === 'hoy') falso.totales.hoy += Number(g.monto);
     falso.totales.mes += Number(g.monto);
     window.__guardados = (window.__guardados || []).concat([g]);
-    return espera({ ok: true, totales: Object.assign({}, falso.totales), deshacer: { hoja: 'En vivo', fila: 20 + (++falso.n), id: g.id } });
+    const fila = 20 + (++falso.n);
+    falso.recientes.unshift({ hoja: 'En vivo', fila, id: g.id, fecha: g.fecha, monto: Number(g.monto), categoria: g.categoria, medio: g.medio, descripcion: g.nota || corto(g.categoria) });
+    return espera({ ok: true, totales: Object.assign({}, falso.totales), recientes: falso.recientes.slice(), deshacer: { hoja: 'En vivo', fila, id: g.id } });
   }
   if (accion === 'deshacer') {
     window.__deshechos = (window.__deshechos || []).concat([extra.deshacer]);
-    return espera({ ok: true, totales: Object.assign({}, falso.totales) });
+    const x = falso.recientes.find((y) => y.id === extra.deshacer.id);
+    if (x) { falso.totales.mes -= x.monto; if (x.fecha === ymd(new Date())) falso.totales.hoy -= x.monto; }
+    falso.recientes = falso.recientes.filter((y) => y.id !== extra.deshacer.id);
+    return espera({ ok: true, totales: Object.assign({}, falso.totales), recientes: falso.recientes.slice() });
   }
   return espera({ ok: false, error: 'acción' });
 }
