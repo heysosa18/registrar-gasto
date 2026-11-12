@@ -48,6 +48,9 @@
   .monto .valor { font-size: clamp(44px, 14vw, 56px); font-weight: 700; letter-spacing: -0.03em; line-height: 1.05; }
   .monto .sig { font-size: 24px; font-weight: 600; color: var(--muted); vertical-align: 0.9em; margin-right: 2px; }
   .monto .valor.cero { color: var(--muted); }
+  .queda { font-size: 13px; color: var(--muted); min-height: 18px; margin-top: 2px; }
+  .queda b { color: var(--text); font-weight: 600; }
+  .queda.alerta, .queda.alerta b { color: var(--danger); }
   .fechas { display: flex; justify-content: center; gap: 4px; margin-top: 6px; }
   .fechas button { font-size: 13px; padding: 6px 10px; border-radius: 999px; color: var(--muted); }
   .fechas button[aria-pressed=true] { color: var(--accent-ink); background: var(--surface); }
@@ -147,6 +150,7 @@
 
   <div class="monto app" aria-live="polite">
     <div class="valor num cero" id="valor"><span class="sig">$</span><span id="digitos">0</span></div>
+    <div class="queda num" id="queda"></div>
     <div class="fechas" role="group" aria-label="Fecha del gasto">
       <button type="button" data-cuando="hoy" aria-pressed="true">Hoy</button>
       <button type="button" data-cuando="ayer" aria-pressed="false">Ayer</button>

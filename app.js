@@ -80,9 +80,13 @@ function pintarUltimos() {
   const t = datos.totales;
   const mes = new Intl.DateTimeFormat('es-CO', { month: 'long' }).format(new Date());
   $('mesTitulo').textContent = mes.charAt(0).toUpperCase() + mes.slice(1);
+  const tope = t && t.topes && t.topes.total;
   const prom = t && t.promedio > 0 ? t.promedio : 0;
-  const parte = prom ? t.mes / prom : 0;
+  const parte = tope ? tope.gastado / tope.tope : prom ? t.mes / prom : 0;
   $('mesResumen').textContent = !t ? 'Aún no hay datos de la hoja.'
+    : tope ? (tope.gastado <= tope.tope
+      ? `Llevas ${cop(tope.gastado)} de tu tope de ${cop(tope.tope)}: vas en el ${Math.round(parte * 100)} %. Te quedan ${cop(tope.tope - tope.gastado)}.`
+      : `Llevas ${cop(tope.gastado)}: te pasaste del tope de ${cop(tope.tope)} por ${cop(tope.gastado - tope.tope)}.`)
     : prom ? `Llevas ${cop(t.mes)}. En un mes normal gastas ${cop(prom)}: vas en el ${Math.round(parte * 100)} %.`
     : `Llevas ${cop(t.mes)} este mes.`;
   $('mesBarra').style.width = Math.min(100, Math.round(parte * 100)) + '%';
@@ -164,7 +168,20 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') document.q
 document.querySelectorAll('.hoja').forEach((h) => h.addEventListener('click', (e) => { if (e.target === h) cerrarPanel(h.id); }));
 $('totales').addEventListener('click', () => { vibrar(); pintarUltimos(); abrirPanel('hojaUltimos'); refrescar(); });
 
+/** Tope de la categoría elegida: cuánto queda contando lo que se está escribiendo. Sin tope, nada. */
+function pintarQueda() {
+  const q = $('queda');
+  const t = datos.totales && datos.totales.topes && datos.totales.topes.cats && datos.totales.topes.cats[s.cat];
+  q.classList.remove('alerta');
+  if (!t) { q.textContent = ''; return; }
+  const queda = t.tope - t.gastado - (Number(s.digitos) || 0);
+  q.innerHTML = queda >= 0 ? `Te quedan <b>${cop(queda)}</b> de ${cop(t.tope)} en ${esc(corto(s.cat))}`
+                           : `Te pasas por <b>${cop(-queda)}</b> del tope de ${cop(t.tope)}`;
+  q.classList.toggle('alerta', queda < 0);
+}
+
 function pintarMonto() {
+  pintarQueda();
   $('digitos').textContent = s.digitos ? Number(s.digitos).toLocaleString('es-CO') : '0';
   $('valor').classList.toggle('cero', !s.digitos);
   const b = $('guardar');
@@ -312,7 +329,12 @@ function sumarTotales(g, signo) {
   const dia = g.fecha || (g.cuando === 'ayer' ? ymd(new Date(Date.now() - 864e5)) : hoy);
   const v = signo * Number(g.monto);
   if (dia === hoy) datos.totales.hoy += v;
-  if (dia.slice(0, 7) === hoy.slice(0, 7)) datos.totales.mes += v;
+  if (dia.slice(0, 7) === hoy.slice(0, 7)) {
+    datos.totales.mes += v;
+    const tp = datos.totales.topes;
+    if (tp && tp.cats && tp.cats[g.categoria]) tp.cats[g.categoria].gastado += v;
+    if (tp && tp.total) tp.total.gastado += v;
+  }
   escribir('datos', datos);
 }
 
@@ -441,30 +463,38 @@ $('btnConectar').addEventListener('click', () => {
 
 /* ───────────── Modo de prueba local (?mock en localhost) ───────────── */
 
-const falso = { totales: { hoy: 0, mes: 152000, promedio: 3043921 }, n: 0, recientes: [
+const falso = { totales: { hoy: 0, mes: 152000, promedio: 3043921, topes: {
+  cats: { 'Restaurantes y comida fuera': { tope: 300000, gastado: 120000 }, 'Mercado y hogar': { tope: 400000, gastado: 380000 } },
+  total: { tope: 1000000, gastado: 152000 } } }, n: 0, recientes: [
   { hoja: 'En vivo', fila: 12, id: 'peluqueria', fecha: '2026-11-03', monto: 17500, categoria: 'Ropa y cuidado personal', medio: 'Nequi', descripcion: 'Peluquería (José del Carmen Soler)' },
 ] };
 function falsa(accion, extra) {
   const espera = (v) => new Promise((ok, ko) => setTimeout(() => (location.search.includes('caida') ? ko(new Error('sin red')) : ok(v)), 450));
   if (accion === 'datos') {
     return espera({ ok: true, todas: [...new Set([...CATS_BASE, ...Object.keys(CORTOS), 'Gasolina', 'Mascotas', 'Seguros'])].sort((a, b) => a.localeCompare(b, 'es')),
-                    medios: MEDIOS_BASE, totales: Object.assign({}, falso.totales), recientes: falso.recientes.slice() });
+                    medios: MEDIOS_BASE, totales: JSON.parse(JSON.stringify(falso.totales)), recientes: falso.recientes.slice() });
   }
   if (accion === 'guardar') {
     const g = extra.gasto;
     if (g.cuando === 'hoy') falso.totales.hoy += Number(g.monto);
     falso.totales.mes += Number(g.monto);
+    falso.totales.topes.total.gastado += Number(g.monto);
+    if (falso.totales.topes.cats[g.categoria]) falso.totales.topes.cats[g.categoria].gastado += Number(g.monto);
     window.__guardados = (window.__guardados || []).concat([g]);
     const fila = 20 + (++falso.n);
     falso.recientes.unshift({ hoja: 'En vivo', fila, id: g.id, fecha: g.fecha, monto: Number(g.monto), categoria: g.categoria, medio: g.medio, descripcion: g.nota || corto(g.categoria) });
-    return espera({ ok: true, totales: Object.assign({}, falso.totales), recientes: falso.recientes.slice(), deshacer: { hoja: 'En vivo', fila, id: g.id } });
+    return espera({ ok: true, totales: JSON.parse(JSON.stringify(falso.totales)), recientes: falso.recientes.slice(), deshacer: { hoja: 'En vivo', fila, id: g.id } });
   }
   if (accion === 'deshacer') {
     window.__deshechos = (window.__deshechos || []).concat([extra.deshacer]);
     const x = falso.recientes.find((y) => y.id === extra.deshacer.id);
-    if (x) { falso.totales.mes -= x.monto; if (x.fecha === ymd(new Date())) falso.totales.hoy -= x.monto; }
+    if (x) {
+      falso.totales.mes -= x.monto; falso.totales.topes.total.gastado -= x.monto;
+      if (falso.totales.topes.cats[x.categoria]) falso.totales.topes.cats[x.categoria].gastado -= x.monto;
+      if (x.fecha === ymd(new Date())) falso.totales.hoy -= x.monto;
+    }
     falso.recientes = falso.recientes.filter((y) => y.id !== extra.deshacer.id);
-    return espera({ ok: true, totales: Object.assign({}, falso.totales), recientes: falso.recientes.slice() });
+    return espera({ ok: true, totales: JSON.parse(JSON.stringify(falso.totales)), recientes: falso.recientes.slice() });
   }
   return espera({ ok: false, error: 'acción' });
 }
