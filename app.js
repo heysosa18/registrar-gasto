@@ -91,6 +91,7 @@ function pintarUltimos() {
     : `Llevas ${cop(t.mes)} este mes.`;
   $('mesBarra').style.width = Math.min(100, Math.round(parte * 100)) + '%';
   $('mesBarraFondo').classList.toggle('pasado', parte > 1);
+  pintarBotonRevisar();
 
   const cont = $('ultimos');
   cont.textContent = '';
@@ -149,6 +150,87 @@ async function borrarUltimo(x) {
     aviso('No se pudo borrar: ' + (e.message || 'sin señal'), null, null, true);
     pintarUltimos();
     refrescar();
+  }
+}
+
+/* ───────────── Revisar movimientos: ¿fue una bobada? (respuesta a la Marca manual de la hoja) ───────────── */
+
+const rev = { cola: [], i: 0, total: 0, cargando: false, enviando: false, error: '' };
+
+function pintarBotonRevisar() {
+  const n = Number(datos.porRevisar) || 0;
+  $('btnRevisar').classList.toggle('on', n > 0);
+  $('revisarTxt').textContent = `Revisar ${n} movimiento${n === 1 ? '' : 's'}`;
+}
+
+/** Una tarjeta a la vez. Todo el texto de la hoja entra con textContent, nunca como HTML. */
+function pintarRevisar() {
+  const cont = $('revisarCuerpo');
+  cont.textContent = '';
+  const el = (tag, clase, texto) => { const e = document.createElement(tag); if (clase) e.className = clase; if (texto !== undefined) e.textContent = texto; return e; };
+  const x = rev.cola[rev.i];
+  $('revisarTitulo').textContent = x ? `Revisar · ${rev.i + 1} de ${rev.cola.length}` : 'Revisar';
+  if (rev.cargando) { cont.appendChild(el('p', 'vacio', 'Trayendo los movimientos…')); return; }
+  if (rev.error) { cont.appendChild(el('p', 'vacio', rev.error)); return; }
+  if (!x) {
+    cont.appendChild(el('p', 'vacio', rev.cola.length ? 'Ya los viste todos. Los que saltaste siguen por revisar.' : 'No hay movimientos por revisar.'));
+    return;
+  }
+  const f = el('div', 'ficha');
+  f.appendChild(el('div', 'monto-r num', cop(x.monto)));
+  f.appendChild(el('div', 'desc-r', x.descripcion));
+  f.appendChild(el('small', '', [x.fecha ? fechaCorta(x.fecha) : '', x.fuente].filter(String).join(' · ')));
+  f.appendChild(el('small', '', x.categoria));
+  f.appendChild(el('div', 'nota-r', x.nota || ''));
+  cont.appendChild(f);
+  const r = el('div', 'respuestas');
+  const b = (clase, texto, alTocar) => { const e = el('button', clase, texto); e.type = 'button'; e.disabled = rev.enviando; e.addEventListener('click', () => { vibrar(); alTocar(); }); return e; };
+  r.append(b('si', 'Es bobada', () => responder('Sí')), b('no', 'No lo es', () => responder('No')),
+           b('saltar', 'Saltar', () => { rev.i++; pintarRevisar(); }));
+  cont.appendChild(r);
+}
+
+async function abrirRevisar() {
+  vibrar();
+  $('hojaUltimos').classList.remove('on');      // cambia de panel sin tocar el historial: atrás cierra este
+  $('hojaRevisar').classList.add('on');
+  Object.assign(rev, { cola: [], i: 0, cargando: true, error: '' });
+  pintarRevisar();
+  try {
+    const r = await api('revisar');
+    if (r.codigo === 401) { desconectar(); return; }
+    if (!r.ok) throw new Error(r.error);
+    rev.cola = r.lista || [];
+    datos.porRevisar = r.total;
+    escribir('datos', datos);
+  } catch (e) {
+    rev.error = 'No se pudo traer la lista: ' + (e.message || 'sin señal');
+  }
+  rev.cargando = false;
+  pintarRevisar();
+}
+$('btnRevisar').addEventListener('click', abrirRevisar);
+
+async function responder(marca) {
+  const x = rev.cola[rev.i];
+  if (!x || rev.enviando) return;
+  rev.enviando = true; pintarRevisar();
+  try {
+    const r = await api('marcar', { marcar: { llave: x.llave, fila: x.fila, marca } });
+    if (r.codigo === 401) { desconectar(); return; }
+    if (typeof r.porRevisar === 'number') { datos.porRevisar = r.porRevisar; escribir('datos', datos); }
+    if (r.ok || r.ya) {                            // marcado (o ya lo habían marcado en la hoja): sale de la lista
+      rev.cola.splice(rev.i, 1);
+      aviso(r.ok ? (marca === 'Sí' ? 'Anotado: fue una bobada.' : 'Anotado: no fue bobada.') : r.error);
+    } else {
+      aviso('No se marcó: ' + r.error, null, null, true);
+      if (/cambi/i.test(r.error || '')) rev.cola.splice(rev.i, 1);
+    }
+  } catch (e) {
+    aviso('No se marcó: ' + (e.message || 'sin señal'), null, null, true);
+  } finally {
+    rev.enviando = false;
+    pintarRevisar();
   }
 }
 
@@ -442,7 +524,8 @@ async function refrescar() {
     const r = await api('datos');
     if (r.codigo === 401) { desconectar(); return; }
     if (!r.ok) return;
-    datos = { todas: r.todas || [], medios: r.medios || MEDIOS_BASE, totales: r.totales || null, recientes: r.recientes || [] };
+    datos = { todas: r.todas || [], medios: r.medios || MEDIOS_BASE, totales: r.totales || null, recientes: r.recientes || [],
+              porRevisar: Number(r.porRevisar) || 0 };
     pendientes.forEach((g) => sumarTotales(g, 1));   // lo que aún no llega a la hoja
     escribir('datos', datos);
     pintarTodo();
@@ -468,11 +551,16 @@ const falso = { totales: { hoy: 0, mes: 152000, promedio: 3043921, topes: {
   total: { tope: 1000000, gastado: 152000 } } }, n: 0, recientes: [
   { hoja: 'En vivo', fila: 12, id: 'peluqueria', fecha: '2026-11-03', monto: 17500, categoria: 'Ropa y cuidado personal', medio: 'Nequi', descripcion: 'Peluquería (José del Carmen Soler)' },
 ] };
+falso.revisar = [
+  { llave: '2026-11-09|Cuenta Nu|80000|Enviaste a Pedro', fila: 1590, fecha: '2026-11-09', descripcion: 'Enviaste a Pedro', monto: 80000, categoria: 'Pagos por identificar', fuente: 'Cuenta Nu', nota: '' },
+  { llave: '2026-10-07|TC Nu|120000|AMAZON <img src=x onerror=alert(1)>', fila: 1500, fecha: '2026-10-07', descripcion: 'AMAZON <img src=x onerror=alert(1)>', monto: 120000, categoria: 'Compras online: Mercado Libre / Amazon / MP', fuente: 'TC Nu', nota: '🔎 Audífonos <b>inalámbricos</b> (correo 07/10) · sugerencia: Hogar y tecnología / Revisar' },
+  { llave: '2026-10-02|Visa BdB|54900|MERCADOPAGO*COMPRA', fila: 1480, fecha: '2026-10-02', descripcion: 'MERCADOPAGO*COMPRA', monto: 54900, categoria: 'Pagos por identificar', fuente: 'Visa BdB', nota: '🔎 sin coincidencia en correo (±2 días)' },
+];
 function falsa(accion, extra) {
   const espera = (v) => new Promise((ok, ko) => setTimeout(() => (location.search.includes('caida') ? ko(new Error('sin red')) : ok(v)), 450));
   if (accion === 'datos') {
     return espera({ ok: true, todas: [...new Set([...CATS_BASE, ...Object.keys(CORTOS), 'Gasolina', 'Mascotas', 'Seguros'])].sort((a, b) => a.localeCompare(b, 'es')),
-                    medios: MEDIOS_BASE, totales: JSON.parse(JSON.stringify(falso.totales)), recientes: falso.recientes.slice() });
+                    medios: MEDIOS_BASE, totales: JSON.parse(JSON.stringify(falso.totales)), recientes: falso.recientes.slice(), porRevisar: falso.revisar.length });
   }
   if (accion === 'guardar') {
     const g = extra.gasto;
@@ -495,6 +583,15 @@ function falsa(accion, extra) {
     }
     falso.recientes = falso.recientes.filter((y) => y.id !== extra.deshacer.id);
     return espera({ ok: true, totales: JSON.parse(JSON.stringify(falso.totales)), recientes: falso.recientes.slice() });
+  }
+  if (accion === 'revisar') return espera({ ok: true, total: falso.revisar.length, lista: falso.revisar.slice() });
+  if (accion === 'marcar') {
+    const m = extra.marcar;
+    window.__marcados = (window.__marcados || []).concat([m]);
+    const i = falso.revisar.findIndex((y) => y.llave === m.llave);
+    if (i < 0) return espera({ ok: false, error: 'Ese movimiento cambió en la hoja; ya no lo encuentro.', porRevisar: falso.revisar.length });
+    falso.revisar.splice(i, 1);
+    return espera({ ok: true, porRevisar: falso.revisar.length });
   }
   return espera({ ok: false, error: 'acción' });
 }

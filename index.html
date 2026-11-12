@@ -127,6 +127,24 @@
   .item .borrar.seguro { color: var(--danger); background: var(--danger-bg); }
   .vacio { color: var(--muted); padding: 4px 12px 18px; margin: 0; font-size: 14px; }
 
+  .revisar-btn { display: none; width: calc(100% - 24px); margin: 0 12px 18px; padding: 12px 14px; border-radius: 12px; background: var(--surface);
+                 align-items: center; gap: 10px; font-size: 15px; font-weight: 600; text-align: left; }
+  .revisar-btn.on { display: flex; }
+  .revisar-btn span { flex: 1; }
+  .revisar-btn i { font-size: 20px; color: var(--accent-ink); }
+  .ficha { margin: 0 12px 16px; padding: 16px; border-radius: var(--radius); background: var(--surface); }
+  .ficha .monto-r { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; }
+  .ficha .desc-r { font-size: 16px; font-weight: 600; margin: 6px 0 4px; overflow-wrap: anywhere; }
+  .ficha small { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
+  .ficha .nota-r { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+  .ficha .nota-r:empty { display: none; }
+  .respuestas { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 12px 8px; }
+  .respuestas button { height: 52px; border-radius: 14px; font-size: 15px; font-weight: 700; background: var(--surface-2); }
+  .respuestas button.si { background: var(--danger-bg); color: var(--danger); }
+  .respuestas button.no { background: var(--accent); color: var(--on-accent); }
+  .respuestas button:disabled { opacity: .5; }
+  .respuestas .saltar { grid-column: 1 / -1; height: 44px; background: none; color: var(--muted); font-weight: 600; }
+
   .conectar { display: none; flex: 1; flex-direction: column; justify-content: center; gap: 14px; padding: 0 8px; }
   .conectar.on { display: flex; }
   .conectar h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; margin: 0; }
@@ -189,8 +207,17 @@
     <h2 id="mesTitulo">Este mes</h2>
     <p class="resumen" id="mesResumen"></p>
     <div class="barra" id="mesBarraFondo"><div id="mesBarra"></div></div>
+    <button class="revisar-btn" id="btnRevisar" type="button"><i class="ti ti-help-circle" aria-hidden="true"></i><span id="revisarTxt"></span><i class="ti ti-chevron-right" aria-hidden="true"></i></button>
     <h2>Últimos gastos anotados</h2>
     <div id="ultimos"></div>
+  </div>
+</div>
+
+<div class="hoja" id="hojaRevisar">
+  <div class="panel" role="dialog" aria-label="Revisar movimientos">
+    <h2 id="revisarTitulo">Revisar</h2>
+    <p class="resumen">¿Este gasto fue una bobada? Tu respuesta queda en la Marca manual de la hoja.</p>
+    <div id="revisarCuerpo"></div>
   </div>
 </div>
 
