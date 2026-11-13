@@ -1,6 +1,8 @@
-/* Guarda la pantalla en el celular para que abra al instante y sin señal. Las llamadas a la hoja nunca se guardan. */
-const VERSION = 'gasto-v7';
-const BASE = ['./', 'index.html', 'app.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
+/* Guarda la pantalla en el celular para que abra al instante y sin señal (letra e íconos incluidos: todo es de la app).
+   Las llamadas a la hoja nunca se guardan. */
+const VERSION = 'gasto-v8';
+const BASE = ['./', 'index.html', 'app.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png',
+  'letra-e-iconos.css', 'fuentes/manrope-latin.woff2', 'fuentes/manrope-latin-ext.woff2', 'fuentes/tabler-icons.woff2'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(VERSION).then((c) => c.addAll(BASE)).then(() => self.skipWaiting()));
@@ -18,15 +20,6 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(req.url);
   if (/script\.google(usercontent)?\.com$/.test(url.hostname)) return;   // la hoja: siempre por red
 
-  const deTerceros = /fonts\.(googleapis|gstatic)\.com|cdn\.jsdelivr\.net/.test(url.hostname);
-  if (deTerceros) {   // fuentes e íconos: primero lo guardado
-    e.respondWith(caches.match(req).then((hit) => hit || fetch(req).then((res) => {
-      const copia = res.clone();
-      caches.open(VERSION).then((c) => c.put(req, copia));
-      return res;
-    })));
-    return;
-  }
   if (url.origin === location.origin) {   // la app: abre con lo guardado y se actualiza por detrás
     e.respondWith(caches.match(req, { ignoreSearch: true }).then((hit) => {
       const red = fetch(req).then((res) => {

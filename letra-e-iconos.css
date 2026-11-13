@@ -1,0 +1,73 @@
+/* Letra e íconos servidos desde la propia app (sin Google Fonts ni jsDelivr).
+ * Manrope variable (latin y latin-ext), de @fontsource-variable/manrope 5.3.0 — SIL Open Font License 1.1.
+ * Íconos: fuente de @tabler/icons-webfont 3.19.0 — MIT, https://tabler.io. Aquí solo están las reglas de los
+ * íconos que usa la app; uno nuevo = copiar su regla de tabler-icons.css de esa versión (lo vigila tests/pwa.test.js). */
+
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 800;
+  src: url(fuentes/manrope-latin-ext.woff2) format('woff2');
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 800;
+  src: url(fuentes/manrope-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+
+@font-face {
+  font-family: 'tabler-icons';
+  font-style: normal;
+  font-weight: 400;
+  src: url(fuentes/tabler-icons.woff2) format('woff2');
+}
+.ti {
+  font-family: 'tabler-icons' !important;
+  speak: none; font-style: normal; font-weight: normal; font-variant: normal; text-transform: none; line-height: 1;
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+}
+.ti-arrows-exchange:before { content: "\f1f4"; }
+.ti-backspace:before { content: "\ea2d"; }
+.ti-barbell:before { content: "\eff0"; }
+.ti-bolt:before { content: "\ea38"; }
+.ti-book:before { content: "\ea39"; }
+.ti-bus:before { content: "\ebe4"; }
+.ti-calendar:before { content: "\ea53"; }
+.ti-car:before { content: "\ebbb"; }
+.ti-cash:before { content: "\ea55"; }
+.ti-check:before { content: "\ea5e"; }
+.ti-chevron-down:before { content: "\ea5f"; }
+.ti-chevron-right:before { content: "\ea61"; }
+.ti-cloud-upload:before { content: "\ea75"; }
+.ti-code:before { content: "\ea77"; }
+.ti-credit-card:before { content: "\ea84"; }
+.ti-device-gamepad-2:before { content: "\f1d2"; }
+.ti-device-laptop:before { content: "\eb64"; }
+.ti-dots:before { content: "\ea95"; }
+.ti-gas-station:before { content: "\ec7d"; }
+.ti-help-circle:before { content: "\f91d"; }
+.ti-home:before { content: "\eac1"; }
+.ti-map:before { content: "\eae9"; }
+.ti-motorbike:before { content: "\eeb6"; }
+.ti-package:before { content: "\eaff"; }
+.ti-paw:before { content: "\eff9"; }
+.ti-pencil:before { content: "\eb04"; }
+.ti-pig-money:before { content: "\f38c"; }
+.ti-pill:before { content: "\ec44"; }
+.ti-plug-connected:before { content: "\f00a"; }
+.ti-receipt-tax:before { content: "\edbd"; }
+.ti-repeat:before { content: "\eb72"; }
+.ti-scissors:before { content: "\eb1b"; }
+.ti-shield:before { content: "\eb24"; }
+.ti-shopping-cart:before { content: "\eb25"; }
+.ti-tag:before { content: "\eb34"; }
+.ti-ticket:before { content: "\eb3d"; }
+.ti-tools-kitchen-2:before { content: "\eeff"; }
+.ti-trash:before { content: "\eb41"; }
+.ti-truck-delivery:before { content: "\ec4b"; }
+.ti-user:before { content: "\eb4d"; }
